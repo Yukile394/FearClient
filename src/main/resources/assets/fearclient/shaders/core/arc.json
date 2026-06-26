@@ -5,7 +5,7 @@
     "dstrgb": "1-srcalpha"
   },
   "vertex": "position",
-  "fragment": "thunderhack:arc",
+  "fragment": "fearclient:arc",
   "attributes": [],
   "samplers": [],
   "uniforms": [
