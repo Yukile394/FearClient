@@ -176,15 +176,14 @@ class GlyphMap {
             }
             NativeImageBackedTexture tex = new NativeImageBackedTexture(image);
             
-            Runnable textureUploadTask = () -> {
+            if (RenderSystem.isOnRenderThread()) {
                 tex.upload();
                 MinecraftClient.getInstance().getTextureManager().registerTexture(i, tex);
-            };
-
-            if (RenderSystem.isOnRenderThread()) {
-                textureUploadTask.run();
             } else {
-                RenderSystem.recordRenderCall(textureUploadTask);
+                RenderSystem.recordRenderCall(() -> {
+                    tex.upload();
+                    MinecraftClient.getInstance().getTextureManager().registerTexture(i, tex);
+                });
             }
         } catch (Throwable e) {
             e.printStackTrace();
