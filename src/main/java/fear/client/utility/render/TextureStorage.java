@@ -1,0 +1,51 @@
+package fear.client.utility.render;
+
+import net.minecraft.util.Identifier;
+
+public final class TextureStorage {
+    public static final Identifier crystalTexture2 = Identifier.of("fearclient", "textures/misc/end_crystal2.png");
+    public static final Identifier skull = Identifier.of("fearclient", "textures/hud/elements/skull.png");
+    public static final Identifier star = Identifier.of("fearclient", "textures/particles/star.png");
+    public static final Identifier heart = Identifier.of("fearclient", "textures/particles/heart.png");
+    public static final Identifier dollar = Identifier.of("fearclient", "textures/particles/dollar.png");
+    public static final Identifier snowflake = Identifier.of("fearclient", "textures/particles/snowflake.png");
+    public static final Identifier firefly = Identifier.of("fearclient", "textures/particles/firefly.png");
+    public static final Identifier arrow = Identifier.of("fearclient", "textures/hud/elements/triangle.png");
+    public static final Identifier capture = Identifier.of("fearclient", "textures/hud/elements/capture.png");
+    public static final Identifier bubble = Identifier.of("fearclient", "textures/particles/hitbubble.png");
+    public static final Identifier default_circle = Identifier.of("fearclient", "textures/particles/circle.png");
+    public static final Identifier container = Identifier.of("fearclient", "textures/hud/elements/container.png");
+    public static final Identifier guiArrow = Identifier.of("fearclient", "textures/gui/elements/arrow.png");
+    public static final Identifier Gear = Identifier.of("fearclient", "textures/gui/headers/client.png");
+    public static final Identifier candle = Identifier.of("fearclient", "textures/hud/elements/candle.png");
+    public static final Identifier thTeam = Identifier.of("fearclient", "textures/gui/elements/thteam.png");
+    public static final Identifier donation = Identifier.of("fearclient", "textures/gui/elements/donationalerts.png");
+    public static final Identifier chestIcon = Identifier.of("fearclient", "textures/hud/icons/chest.png");
+    public static final Identifier brokenShield = Identifier.of("fearclient", "textures/hud/elements/broken_shield.png");
+    public static final Identifier miniLogo = Identifier.of("fearclient", "textures/hud/icons/mini_logo.png");
+    public static final Identifier playerIcon = Identifier.of("fearclient", "textures/gui/headers/player.png");
+    public static final Identifier serverIcon = Identifier.of("fearclient", "textures/hud/icons/server.png");
+    public static final Identifier proxyIcon = Identifier.of("fearclient", "textures/hud/icons/proxy.png");
+    public static final Identifier waypoint = Identifier.of("fearclient", "textures/hud/elements/waypoint.png");
+    public static final Identifier configIcon = Identifier.of("fearclient", "textures/gui/elements/configpng.png");
+    public static final Identifier waypointIcon = Identifier.of("fearclient", "textures/gui/elements/waypointicon.png");
+    public static final Identifier macrosIcon = Identifier.of("fearclient", "textures/gui/elements/macrosicon.png");
+    public static final Identifier speedometerIcon = Identifier.of("fearclient", "textures/hud/icons/speedometer.png");
+    public static final Identifier lagIcon = Identifier.of("fearclient", "textures/hud/elements/lag.png");
+    public static final Identifier fpsIcon = Identifier.of("fearclient", "textures/hud/icons/fps.png");
+    public static final Identifier pingIcon = Identifier.of("fearclient", "textures/hud/icons/ping.png");
+    public static final Identifier swordIcon = Identifier.of("fearclient", "textures/hud/icons/sword.png");
+    public static final Identifier memoryIcon = Identifier.of("fearclient", "textures/hud/icons/memory.png");
+    public static final Identifier tpsIcon = Identifier.of("fearclient", "textures/hud/icons/tps.png");
+    public static final Identifier boykisser = Identifier.of("fearclient", "textures/hud/elements/boykisser.png");
+    public static final Identifier paimon = Identifier.of("fearclient", "textures/hud/elements/paimon.png");
+    public static final Identifier baltika = Identifier.of("fearclient", "textures/hud/elements/baltika.png");
+    public static final Identifier kowk = Identifier.of("fearclient", "textures/hud/elements/kowk.png");
+    public static final Identifier thLogo = Identifier.of("fearclient", "textures/gui/elements/th.png");
+    public static final Identifier thudPic = Identifier.of("fearclient", "textures/hud/elements/thud.png");
+    public static final Identifier coordsIcon = Identifier.of("fearclient", "textures/hud/icons/coords.png");
+    public static final Identifier sunRiseSkin = Identifier.of("fearclient", "textures/misc/sunskin.png");
+    public static final Identifier crackedSkin = Identifier.of("fearclient", "textures/gui/elements/cracked.png");
+    public static final Identifier questionPic = Identifier.of("fearclient", "textures/gui/helper/pic1.png");
+    public static final Identifier cutie = Identifier.of("fearclient", "textures/gui/images/cutie.png");
+}
