@@ -148,7 +148,6 @@ class GlyphMap {
             NativeImage image = new NativeImage(NativeImage.Format.RGBA, ow, oh, false);
             @SuppressWarnings("DataFlowIssue") long ptr = ((INativeImage) (Object) image).getPointer();
             IntBuffer backingBuffer = MemoryUtil.memIntBuffer(ptr, image.getWidth() * image.getHeight());
-            int off = 0;
             Object _d;
             WritableRaster _ra = bi.getRaster();
             ColorModel _cm = bi.getColorModel();
@@ -176,11 +175,16 @@ class GlyphMap {
                 }
             }
             NativeImageBackedTexture tex = new NativeImageBackedTexture(image);
-            tex.upload();
-            if (RenderSystem.isOnRenderThread()) {
+            
+            Runnable textureUploadTask = () -> {
+                tex.upload();
                 MinecraftClient.getInstance().getTextureManager().registerTexture(i, tex);
+            };
+
+            if (RenderSystem.isOnRenderThread()) {
+                textureUploadTask.run();
             } else {
-                RenderSystem.recordRenderCall(() -> MinecraftClient.getInstance().getTextureManager().registerTexture(i, tex));
+                RenderSystem.recordRenderCall(textureUploadTask);
             }
         } catch (Throwable e) {
             e.printStackTrace();
