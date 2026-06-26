@@ -33,11 +33,17 @@ jobs:
       - name: Remove *-sources.jar
         run: rm ./build/libs/*-sources.jar || true
 
-      - uses: "0xDylan/action-auto-releases-n20@v1.1"
+      - name: Delete old latest tag
+        run: |
+          git tag -d latest || true
+          git push origin :refs/tags/latest || true
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
         with:
-          repo_token: "${{ secrets.GITHUB_TOKEN }}"
-          automatic_release_tag: "latest"
+          token: "${{ secrets.GITHUB_TOKEN }}"
+          tag_name: "latest"
           prerelease: false
-          title: "Latest Build (1.21)"
+          name: "Latest Build (1.21)"
           files: |
             ./build/libs/*.jar
