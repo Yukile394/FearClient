@@ -1,92 +1,92 @@
 {
   "keypress": {
     "sounds": [
-      "thunderhack:keypress"
+      "fearclient:keypress"
     ]
   },
   "keyrelease": {
     "sounds": [
-      "thunderhack:keyrelease"
+      "fearclient:keyrelease"
     ]
   },
   "uwu": {
     "sounds": [
-      "thunderhack:uwu"
+      "fearclient:uwu"
     ]
   },
   "disable": {
     "sounds": [
-      "thunderhack:disable"
+      "fearclient:disable"
     ]
   },
   "enable": {
     "sounds": [
-      "thunderhack:enable"
+      "fearclient:enable"
     ]
   },
   "moan1": {
     "sounds": [
-      "thunderhack:moan1"
+      "fearclient:moan1"
     ]
   },
   "moan2": {
     "sounds": [
-      "thunderhack:moan2"
+      "fearclient:moan2"
     ]
   },
   "moan3": {
     "sounds": [
-      "thunderhack:moan3"
+      "fearclient:moan3"
     ]
   },
   "moan4": {
     "sounds": [
-      "thunderhack:moan4"
+      "fearclient:moan4"
     ]
   },
   "skeet": {
     "sounds": [
-      "thunderhack:skeet"
+      "fearclient:skeet"
     ]
   },
   "orthodox": {
     "sounds": [
-      "thunderhack:orthodox"
+      "fearclient:orthodox"
     ]
   },
   "boolean": {
     "sounds": [
-      "thunderhack:boolean"
+      "fearclient:boolean"
     ]
   },
   "scroll": {
     "sounds": [
-      "thunderhack:scroll"
+      "fearclient:scroll"
     ]
   },
   "swipein": {
     "sounds": [
-      "thunderhack:swipein"
+      "fearclient:swipein"
     ]
   },
   "swipeout": {
     "sounds": [
-      "thunderhack:swipeout"
+      "fearclient:swipeout"
     ]
   },
   "pmsound": {
     "sounds": [
-      "thunderhack:pmsound"
+      "fearclient:pmsound"
     ]
   },
   "rifk": {
     "sounds": [
-      "thunderhack:rifk"
+      "fearclient:rifk"
     ]
   },
   "cutie": {
     "sounds": [
-      "thunderhack:cutie"
+      "fearclient:cutie"
     ]
   }
 }
