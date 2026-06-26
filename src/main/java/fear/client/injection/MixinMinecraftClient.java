@@ -52,6 +52,9 @@ public abstract class MixinMinecraftClient {
     public abstract void setScreen(@Nullable Screen screen);
 
     @Unique
+    private boolean fearFontsInitialized = false;
+
+    @Unique
     private String[] shittyServers = {
             "mineblaze",
             "musteryworld",
@@ -62,8 +65,10 @@ public abstract class MixinMinecraftClient {
             "vimemc"
     };
 
-    @Inject(method = "<init>", at = @At("TAIL"))
-    void postWindowInit(RunArgs args, CallbackInfo ci) {
+    @Inject(method = "render", at = @At("HEAD"))
+    void onFirstRender(boolean tick, CallbackInfo ci) {
+        if (fearFontsInitialized) return;
+        fearFontsInitialized = true;
         try {
             FontRenderers.settings = FontRenderers.create(12f, "comfortaa");
             FontRenderers.modules = FontRenderers.create(15f, "comfortaa");
@@ -100,7 +105,6 @@ public abstract class MixinMinecraftClient {
     private void captureResize(CallbackInfo ci) {
         WindowResizeCallback.EVENT.invoker().onResized((MinecraftClient) (Object) this, this.window);
     }
-
 
     @Inject(method = "doItemPick", at = @At("HEAD"), cancellable = true)
     private void doItemPickHook(CallbackInfo ci) {
@@ -142,13 +146,10 @@ public abstract class MixinMinecraftClient {
 
     @Redirect(method = "<init>", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/util/Window;setIcon(Lnet/minecraft/resource/ResourcePack;Lnet/minecraft/client/util/Icons;)V"))
     private void onChangeIcon(Window instance, ResourcePack resourcePack, Icons icons) throws IOException {
-        // RenderSystem.assertInInitPhase();
-
         if (GLFW.glfwGetPlatform() == 393218) {
             MacWindowUtil.setApplicationIconImage(icons.getMacIcon(resourcePack));
             return;
         }
-
         setWindowIcon(FearClient.class.getResourceAsStream("/icon.png"), FearClient.class.getResourceAsStream("/icon.png"));
     }
 
