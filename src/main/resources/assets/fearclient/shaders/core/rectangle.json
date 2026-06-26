@@ -5,7 +5,7 @@
     "dstrgb": "1-srcalpha"
   },
   "vertex": "position",
-  "fragment": "thunderhack:rectangle",
+  "fragment": "fearclient:rectangle",
   "attributes": [],
   "samplers": [],
   "uniforms": [
