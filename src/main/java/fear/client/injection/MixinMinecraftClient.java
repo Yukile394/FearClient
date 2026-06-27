@@ -52,7 +52,6 @@ public abstract class MixinMinecraftClient {
     public abstract void setScreen(@Nullable Screen screen);
 
     @Unique
-    @Unique
     private String[] shittyServers = {
             "mineblaze",
             "musteryworld",
@@ -65,7 +64,27 @@ public abstract class MixinMinecraftClient {
 
     @Inject(method = "render", at = @At("HEAD"))
     void onFirstRender(boolean tick, CallbackInfo ci) {
-        // fonts are now initialized in onResolutionChanged (runs earlier, before first render)
+        if (FontRenderers.sf_bold != null) return;
+        try {
+            FontRenderers.settings = FontRenderers.create(12f, "comfortaa");
+            FontRenderers.modules = FontRenderers.create(15f, "comfortaa");
+            FontRenderers.categories = FontRenderers.create(18f, "comfortaa");
+            FontRenderers.thglitch = FontRenderers.create(36f, "glitched");
+            FontRenderers.thglitchBig = FontRenderers.create(72f, "glitched");
+            FontRenderers.monsterrat = FontRenderers.create(18f, "monsterrat");
+            FontRenderers.sf_bold = FontRenderers.create(16f, "sf_bold");
+            FontRenderers.sf_medium = FontRenderers.create(16f, "sf_medium");
+            FontRenderers.sf_medium_mini = FontRenderers.create(12f, "sf_medium");
+            FontRenderers.sf_medium_modules = FontRenderers.create(14f, "sf_medium");
+            FontRenderers.sf_bold_mini = FontRenderers.create(14f, "sf_bold");
+            FontRenderers.sf_bold_micro = FontRenderers.create(12f, "sf_bold");
+            FontRenderers.profont = FontRenderers.create(16f, "profont");
+            FontRenderers.icons = FontRenderers.create(20, "icons");
+            FontRenderers.mid_icons = FontRenderers.create(46, "icons");
+            FontRenderers.big_icons = FontRenderers.create(72, "icons");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     @Inject(method = "tick", at = @At("HEAD"))
@@ -198,4 +217,3 @@ public abstract class MixinMinecraftClient {
         }
     }
 }
-
