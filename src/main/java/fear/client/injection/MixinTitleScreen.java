@@ -1,23 +1,22 @@
 package fear.client.injection;
 
-import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.client.gui.screen.ConfirmScreen;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.TitleScreen;
-import net.minecraft.client.util.InputUtil;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
-import net.minecraft.util.Util;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import fear.client.FearClient;
-import fear.client.gui.misc.DialogScreen;
-import fear.client.gui.mainmenu.MainMenuScreen;
-import fear.client.utility.render.TextureStorage;
 import fear.client.core.manager.client.ModuleManager;
 import fear.client.features.modules.client.ClientSettings;
+import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.client.gui.screen.ConfirmScreen;
+import net.minecraft.util.Util;
+import fear.client.FearClient;
+import net.minecraft.client.util.InputUtil;
+import fear.client.gui.misc.DialogScreen;
+import fear.client.utility.render.TextureStorage;
 
 import java.net.URI;
 
@@ -32,50 +31,10 @@ public class MixinTitleScreen extends Screen {
 
     @Inject(method = "init", at = @At("RETURN"))
     public void postInitHook(CallbackInfo ci) {
-        if (ClientSettings.customMainMenu.getValue() && !MainMenuScreen.getInstance().confirm && ModuleManager.clickGui.getBind().getKey() != -1) {
-            mc.setScreen(MainMenuScreen.getInstance());
-        }
+        // Özel ana menü devre dışı bırakıldı — Minecraft'ın varsayılan menüsü gösterilir.
+        // P tuşu bind edilmemişse otomatik olarak ata
         if (ModuleManager.clickGui.getBind().getKey() == -1) {
-            DialogScreen dialogScreen2 = new DialogScreen(
-                    TextureStorage.cutie,
-                    isRu() ? "Спасибо что скачали FearClient!" : "Thank you for downloading FearClient!",
-                    isRu() ? "Меню с функциями клиента открывается на клавишу - P" : "Menu with client modules is opened with the key - P",
-                    isRu() ? "Зайти в майн" : "Join on minecraft",
-                    isRu() ? "Закрыть майн" : "Close minecraft",
-                    () -> {
-                        ModuleManager.clickGui.setBind(InputUtil.fromTranslationKey("key.keyboard.p").getCode(), false, false);
-                        mc.setScreen(MainMenuScreen.getInstance());
-                    },
-                    () -> {
-                        ModuleManager.clickGui.setBind(InputUtil.fromTranslationKey("key.keyboard.p").getCode(), false, false);
-                        mc.stop();
-                    }
-            );
-            DialogScreen dialogScreen1 = new DialogScreen(
-                    TextureStorage.questionPic,
-                    "Hello!",
-                    "What's your language?",
-                    "Русский",
-                    "English",
-                    () -> {
-                        ClientSettings.language.setValue(ClientSettings.Language.RU);
-                        mc.setScreen(dialogScreen2);
-                    },
-                    () -> {
-                        ClientSettings.language.setValue(ClientSettings.Language.ENG);
-                        mc.setScreen(dialogScreen2);
-                    }
-            );
-            mc.setScreen(dialogScreen1);
-        }
-
-        if (FearClient.isOutdated && !FabricLoader.getInstance().isDevelopmentEnvironment()) {
-            mc.setScreen(new ConfirmScreen(
-                    confirm -> {
-                        if (confirm) Util.getOperatingSystem().open(URI.create("https://github.com/Pan4ur/FearClient-Recode/releases/download/latest/fearclient-1.7.jar/"));
-                        else mc.stop();
-                    },
-                    Text.of(Formatting.RED + "You are using an outdated version of FearClient Recode"), Text.of("Please update to the latest release"), Text.of("Download"), Text.of("Quit Game")));
+            ModuleManager.clickGui.setBind(InputUtil.fromTranslationKey("key.keyboard.p").getCode(), false, false);
         }
     }
 }
