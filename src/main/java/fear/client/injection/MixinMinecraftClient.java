@@ -52,8 +52,6 @@ public abstract class MixinMinecraftClient {
     public abstract void setScreen(@Nullable Screen screen);
 
     @Unique
-    private boolean fearFontsInitialized = false;
-
     @Unique
     private String[] shittyServers = {
             "mineblaze",
@@ -67,8 +65,22 @@ public abstract class MixinMinecraftClient {
 
     @Inject(method = "render", at = @At("HEAD"))
     void onFirstRender(boolean tick, CallbackInfo ci) {
-        if (fearFontsInitialized) return;
-        fearFontsInitialized = true;
+        // fonts are now initialized in onResolutionChanged (runs earlier, before first render)
+    }
+
+    @Inject(method = "tick", at = @At("HEAD"))
+    void preTickHook(CallbackInfo ci) {
+        if (!Module.fullNullCheck()) FearClient.EVENT_BUS.post(new EventTick());
+    }
+
+    @Inject(method = "tick", at = @At("RETURN"))
+    void postTickHook(CallbackInfo ci) {
+        if (!Module.fullNullCheck()) FearClient.EVENT_BUS.post(new EventPostTick());
+    }
+
+    @Inject(method = "onResolutionChanged", at = @At("TAIL"))
+    private void captureResize(CallbackInfo ci) {
+        WindowResizeCallback.EVENT.invoker().onResized((MinecraftClient) (Object) this, this.window);
         try {
             FontRenderers.settings = FontRenderers.create(12f, "comfortaa");
             FontRenderers.modules = FontRenderers.create(15f, "comfortaa");
@@ -89,21 +101,6 @@ public abstract class MixinMinecraftClient {
         } catch (Exception e) {
             e.printStackTrace();
         }
-    }
-
-    @Inject(method = "tick", at = @At("HEAD"))
-    void preTickHook(CallbackInfo ci) {
-        if (!Module.fullNullCheck()) FearClient.EVENT_BUS.post(new EventTick());
-    }
-
-    @Inject(method = "tick", at = @At("RETURN"))
-    void postTickHook(CallbackInfo ci) {
-        if (!Module.fullNullCheck()) FearClient.EVENT_BUS.post(new EventPostTick());
-    }
-
-    @Inject(method = "onResolutionChanged", at = @At("TAIL"))
-    private void captureResize(CallbackInfo ci) {
-        WindowResizeCallback.EVENT.invoker().onResized((MinecraftClient) (Object) this, this.window);
     }
 
     @Inject(method = "doItemPick", at = @At("HEAD"), cancellable = true)
@@ -201,3 +198,4 @@ public abstract class MixinMinecraftClient {
         }
     }
 }
+
