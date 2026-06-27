@@ -30,27 +30,40 @@ public class MSAAFramebuffer extends Framebuffer {
     }
 
     public static void use(boolean fancy, Runnable drawAction) {
-        use(Math.min(fancy ? 16 : 4, MAX_SAMPLES), MinecraftClient.getInstance().getFramebuffer(), drawAction);
+        int requested = fancy ? 16 : 4;
+        int clamped = Math.max(1, Math.min(requested, MAX_SAMPLES));
+        use(clamped, MinecraftClient.getInstance().getFramebuffer(), drawAction);
     }
 
     public static void use(int samples, @NotNull Framebuffer mainBuffer, @NotNull Runnable drawAction) {
         RenderSystem.assertOnRenderThreadOrInit();
-        MSAAFramebuffer msaaBuffer = MSAAFramebuffer.getInstance(samples);
-        msaaBuffer.resize(mainBuffer.textureWidth, mainBuffer.textureHeight, false);
+        // Android/OpenGL ES'te MSAA desteklenmeyebilir; hata olursa direkt çalıştır
+        if (MAX_SAMPLES <= 0) {
+            drawAction.run();
+            return;
+        }
+        try {
+            MSAAFramebuffer msaaBuffer = MSAAFramebuffer.getInstance(samples);
+            msaaBuffer.resize(mainBuffer.textureWidth, mainBuffer.textureHeight, false);
 
-        GlStateManager._glBindFramebuffer(GL30C.GL_READ_FRAMEBUFFER, mainBuffer.fbo);
-        GlStateManager._glBindFramebuffer(GL30C.GL_DRAW_FRAMEBUFFER, msaaBuffer.fbo);
-        GlStateManager._glBlitFrameBuffer(0, 0, msaaBuffer.textureWidth, msaaBuffer.textureHeight, 0, 0, msaaBuffer.textureWidth, msaaBuffer.textureHeight, GL30C.GL_COLOR_BUFFER_BIT, GL30C.GL_LINEAR);
-        msaaBuffer.beginWrite(true);
+            GlStateManager._glBindFramebuffer(GL30C.GL_READ_FRAMEBUFFER, mainBuffer.fbo);
+            GlStateManager._glBindFramebuffer(GL30C.GL_DRAW_FRAMEBUFFER, msaaBuffer.fbo);
+            GlStateManager._glBlitFrameBuffer(0, 0, msaaBuffer.textureWidth, msaaBuffer.textureHeight, 0, 0, msaaBuffer.textureWidth, msaaBuffer.textureHeight, GL30C.GL_COLOR_BUFFER_BIT, GL30C.GL_LINEAR);
+            msaaBuffer.beginWrite(true);
 
-        drawAction.run();
-        msaaBuffer.endWrite();
+            drawAction.run();
+            msaaBuffer.endWrite();
 
-        GlStateManager._glBindFramebuffer(GL30C.GL_READ_FRAMEBUFFER, msaaBuffer.fbo);
-        GlStateManager._glBindFramebuffer(GL30C.GL_DRAW_FRAMEBUFFER, mainBuffer.fbo);
-        GlStateManager._glBlitFrameBuffer(0, 0, msaaBuffer.textureWidth, msaaBuffer.textureHeight, 0, 0, msaaBuffer.textureWidth, msaaBuffer.textureHeight, GL30C.GL_COLOR_BUFFER_BIT, GL30C.GL_LINEAR);
-        msaaBuffer.clear(false);
-        mainBuffer.beginWrite(false);
+            GlStateManager._glBindFramebuffer(GL30C.GL_READ_FRAMEBUFFER, msaaBuffer.fbo);
+            GlStateManager._glBindFramebuffer(GL30C.GL_DRAW_FRAMEBUFFER, mainBuffer.fbo);
+            GlStateManager._glBlitFrameBuffer(0, 0, msaaBuffer.textureWidth, msaaBuffer.textureHeight, 0, 0, msaaBuffer.textureWidth, msaaBuffer.textureHeight, GL30C.GL_COLOR_BUFFER_BIT, GL30C.GL_LINEAR);
+            msaaBuffer.clear(false);
+            mainBuffer.beginWrite(false);
+        } catch (RuntimeException e) {
+            // MSAA desteklenmiyor (örn. Android OpenGL ES), fallback olarak direkt çalıştır
+            mainBuffer.beginWrite(false);
+            drawAction.run();
+        }
     }
 
     @Override
