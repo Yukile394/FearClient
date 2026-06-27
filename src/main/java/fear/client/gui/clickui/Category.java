@@ -126,10 +126,12 @@ public class Category extends AbstractCategory {
             // Texture eksikse sessizce atla
         }
 
-        Render2DEngine.drawBlurredShadow(context.getMatrices(),
-                ((int) getX() + (width - 4) / 2) - FontRenderers.categories.getStringWidth(getName()) / 2f, (int) getY() + (int) height / 2f - 10, FontRenderers.categories.getStringWidth(getName()) + 6, 13, 20, Render2DEngine.injectAlpha(Color.black, 170));
+        if (FontRenderers.categories != null) {
+            Render2DEngine.drawBlurredShadow(context.getMatrices(),
+                    ((int) getX() + (width - 4) / 2) - FontRenderers.categories.getStringWidth(getName()) / 2f, (int) getY() + (int) height / 2f - 10, FontRenderers.categories.getStringWidth(getName()) + 6, 13, 20, Render2DEngine.injectAlpha(Color.black, 170));
 
-        FontRenderers.categories.drawCenteredString(context.getMatrices(), getName(), ((int) getX() + 2 + (width - 4) / 2), (int) getY() + (int) height / 2f - 7, new Color(-1).getRGB());
+            FontRenderers.categories.drawCenteredString(context.getMatrices(), getName(), ((int) getX() + 2 + (width - 4) / 2), (int) getY() + (int) height / 2f - 7, new Color(-1).getRGB());
+        }
         context.getMatrices().pop();
         updatePosition();
     }
