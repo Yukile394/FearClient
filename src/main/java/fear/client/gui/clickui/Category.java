@@ -103,7 +103,7 @@ public class Category extends AbstractCategory {
 
         Render2DEngine.drawHudBase(context.getMatrices(), getX() + 2, getY() - 5, width - 4, height, 1, false);
 
-        {
+        try {
             RenderSystem.setShaderTexture(0, ICON);
             RenderSystem.enableBlend();
             RenderSystem.blendFunc(GlStateManager.SrcFactor.SRC_ALPHA, GlStateManager.DstFactor.ONE);
@@ -122,6 +122,8 @@ public class Category extends AbstractCategory {
             BufferRenderer.drawWithGlobalProgram(b.end());
             RenderSystem.disableBlend();
             Render2DEngine.popWindow();
+        } catch (Exception ignored) {
+            // Texture eksikse sessizce atla
         }
 
         Render2DEngine.drawBlurredShadow(context.getMatrices(),
