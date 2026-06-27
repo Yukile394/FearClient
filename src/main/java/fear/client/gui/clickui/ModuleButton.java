@@ -210,6 +210,8 @@ public class ModuleButton extends AbstractButton {
             }
         }
 
+        if (FontRenderers.sf_medium_modules == null) return;
+
         if (!module.getBind().getBind().equalsIgnoreCase("none") && !binding)
             FontRenderers.sf_medium_modules.drawString(context.getMatrices(), getSbind(), x + width - 11 - FontRenderers.sf_medium_modules.getStringWidth(getSbind()), y + 6, module.isEnabled() ? HudEditor.textColor2.getValue().getColor() : HudEditor.textColor.getValue().getColor());
 
