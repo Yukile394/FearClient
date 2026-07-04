@@ -26,6 +26,8 @@ public final class AutoBuff extends Module {
     private final Setting<Boolean> fire = new Setting<>("FireResistance", true);
     private final Setting<BooleanSettingGroup> heal = new Setting<>("InstantHealing", new BooleanSettingGroup(true));
     private final Setting<Integer> healthH = new Setting<>("Health", 8, 0, 20).addToGroup(heal);
+    private final Setting<Boolean> healPriority = new Setting<>("HealPriority", true).addToGroup(heal);
+    private final Setting<Integer> healDelay = new Setting<>("HealDelay", 150, 0, 1000).addToGroup(heal);
     private final Setting<BooleanSettingGroup> regen = new Setting<>("Regeneration", new BooleanSettingGroup(true));
     private final Setting<TriggerOn> triggerOn = new Setting<>("Trigger", TriggerOn.LackOfRegen).addToGroup(regen);
     private final Setting<Integer> healthR = new Setting<>("HP", 8, 0, 20, v -> triggerOn.is(TriggerOn.Health)).addToGroup(regen);
@@ -33,7 +35,9 @@ public final class AutoBuff extends Module {
     private final Setting<Boolean> pauseAura = new Setting<>("PauseAura", false);
 
     public Timer timer = new Timer();
+    public Timer healTimer = new Timer();
     private boolean spoofed = false;
+    private boolean healSpoofed = false;
 
     public AutoBuff() {
         super("AutoBuff", Category.COMBAT);
@@ -74,6 +78,14 @@ public final class AutoBuff extends Module {
 
     @EventHandler
     public void onPostRotationSet(EventAfterRotate event) {
+        boolean emergencyHeal = shouldHeal() && !healGateBlocked();
+
+        if (mc.player.age > 80 && emergencyHeal) {
+            mc.player.setPitch(90);
+            healSpoofed = true;
+            return;
+        }
+
         if (Aura.target != null && mc.player.getAttackCooldownProgress(1) > 0.5f) return;
         if (mc.player.age > 80 && shouldThrow()) {
             mc.player.setPitch(90);
@@ -82,11 +94,42 @@ public final class AutoBuff extends Module {
     }
 
     private boolean shouldThrow() {
-        return (!mc.player.hasStatusEffect(StatusEffects.SPEED) && isPotionOnHotBar(Potions.SPEED) && speed.getValue()) || (!mc.player.hasStatusEffect(StatusEffects.STRENGTH) && isPotionOnHotBar(Potions.STRENGTH) && strength.getValue()) || (!mc.player.hasStatusEffect(StatusEffects.FIRE_RESISTANCE) && isPotionOnHotBar(Potions.FIRERES) && fire.getValue()) || (mc.player.getHealth() + mc.player.getAbsorptionAmount() < healthH.getValue() && isPotionOnHotBar(Potions.HEAL) && heal.getValue().isEnabled()) || (!mc.player.hasStatusEffect(StatusEffects.REGENERATION) && triggerOn.is(TriggerOn.LackOfRegen) && isPotionOnHotBar(Potions.REGEN) && regen.getValue().isEnabled()) || (mc.player.getHealth() + mc.player.getAbsorptionAmount() < healthR.getValue() && triggerOn.is(TriggerOn.Health) && isPotionOnHotBar(Potions.REGEN) && regen.getValue().isEnabled());
+        return (!mc.player.hasStatusEffect(StatusEffects.SPEED) && isPotionOnHotBar(Potions.SPEED) && speed.getValue()) || (!mc.player.hasStatusEffect(StatusEffects.STRENGTH) && isPotionOnHotBar(Potions.STRENGTH) && strength.getValue()) || (!mc.player.hasStatusEffect(StatusEffects.FIRE_RESISTANCE) && isPotionOnHotBar(Potions.FIRERES) && fire.getValue()) || (!mc.player.hasStatusEffect(StatusEffects.REGENERATION) && triggerOn.is(TriggerOn.LackOfRegen) && isPotionOnHotBar(Potions.REGEN) && regen.getValue().isEnabled()) || (mc.player.getHealth() + mc.player.getAbsorptionAmount() < healthR.getValue() && triggerOn.is(TriggerOn.Health) && isPotionOnHotBar(Potions.REGEN) && regen.getValue().isEnabled());
+    }
+
+    /**
+     * Instant Health check, kept separate from shouldThrow() so it can fire immediately
+     * (bypassing the combat-lock / ground-check / shared 1s cooldown) instead of waiting
+     * in line behind the other buffs. Works with both Instant Health I and II splash potions,
+     * since only the effect type is checked, not the amplifier/tier.
+     */
+    private boolean shouldHeal() {
+        return heal.getValue().isEnabled() && isPotionOnHotBar(Potions.HEAL) && (mc.player.getHealth() + mc.player.getAbsorptionAmount()) < healthH.getValue();
+    }
+
+    /**
+     * When HealPriority is on (default), the emergency heal ignores the aura combat-lock
+     * and the OnlyOnGround restriction so it can react the instant health drops.
+     * When off, heal behaves like the other buffs and respects those gates.
+     */
+    private boolean healGateBlocked() {
+        if (healPriority.getValue()) return false;
+        if (Aura.target != null && mc.player.getAttackCooldownProgress(1) > 0.5f) return true;
+        return onDaGround.getValue() && !mc.player.isOnGround();
     }
 
     @EventHandler
     public void onPostSync(EventPostSync e) {
+        // Emergency instant-health: handled first and independently so it can react
+        // right away instead of waiting behind the combat-lock/ground-check/1s cooldown
+        // that gate the other buffs.
+        if (shouldHeal() && !healGateBlocked() && mc.player.age > 80 && healSpoofed && healTimer.passedMs(healDelay.getValue())) {
+            throwPotion(Potions.HEAL);
+            sendPacket(new UpdateSelectedSlotC2SPacket(mc.player.getInventory().selectedSlot));
+            healTimer.reset();
+            healSpoofed = false;
+        }
+
         if (Aura.target != null && mc.player.getAttackCooldownProgress(1) > 0.5f) return;
 
         if (onDaGround.getValue() && !mc.player.isOnGround()) return;
@@ -100,9 +143,6 @@ public final class AutoBuff extends Module {
 
             if (!mc.player.hasStatusEffect(StatusEffects.FIRE_RESISTANCE) && isPotionOnHotBar(Potions.FIRERES) && fire.getValue())
                 throwPotion(Potions.FIRERES);
-
-            if (mc.player.getHealth() + mc.player.getAbsorptionAmount() < healthH.getValue() && heal.getValue().isEnabled() && isPotionOnHotBar(Potions.HEAL))
-                throwPotion(Potions.HEAL);
 
             if (((!mc.player.hasStatusEffect(StatusEffects.REGENERATION) && triggerOn.is(TriggerOn.LackOfRegen)) || (mc.player.getHealth() + mc.player.getAbsorptionAmount() < healthR.getValue() && triggerOn.is(TriggerOn.Health))) && isPotionOnHotBar(Potions.REGEN) && regen.getValue().isEnabled())
                 throwPotion(Potions.REGEN);
