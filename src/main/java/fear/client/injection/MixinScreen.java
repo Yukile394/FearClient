@@ -21,7 +21,6 @@ import fear.client.events.impl.ClientClickEvent;
 import fear.client.gui.misc.DialogScreen;
 import fear.client.features.modules.client.ClientSettings;
 import fear.client.utility.math.MathUtility;
-import fear.client.utility.render.Render2DEngine;
 import fear.client.utility.render.TextureStorage;
 
 import java.io.BufferedReader;
@@ -108,14 +107,6 @@ public abstract class MixinScreen {
                         mc.setScreen(null);
                     });
             mc.setScreen(dialogScreen2);
-        }
-    }
-
-    @Inject(method = "renderPanoramaBackground", at = @At("HEAD"), cancellable = true)
-    public void renderPanoramaBackgroundHook(DrawContext context, float delta, CallbackInfo ci) {
-        if (ClientSettings.customPanorama.getValue() && mc.world == null) {
-            ci.cancel();
-            Render2DEngine.drawMainMenuShader(context.getMatrices(), 0, 0, mc.getWindow().getScaledWidth(), mc.getWindow().getScaledHeight());
         }
     }
 
