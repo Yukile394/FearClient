@@ -186,6 +186,36 @@ public final class InventoryUtility {
         return new SearchInvResult(slot, true, mc.player.getInventory().getStack(slot));
     }
 
+    /**
+     * Finds the sword with the highest Sharpness level in the hotbar (slots 0-8 only).
+     * Unlike getSwordHotBar(), this ranks purely by Sharpness level; max durability is only
+     * used as a tie-breaker between swords with equal Sharpness.
+     */
+    public static SearchInvResult getHighestSharpnessSwordHotBar() {
+        if (mc.player == null) return SearchInvResult.notFound();
+
+        int slot = -1;
+        int bestSharpness = -1;
+        float bestDurability = -1f;
+
+        for (int i = 0; i < 9; i++) {
+            ItemStack itemStack = mc.player.getInventory().getStack(i);
+            if (itemStack == null || !(itemStack.getItem() instanceof SwordItem)) continue;
+
+            int sharpness = EnchantmentHelper.getLevel(mc.world.getRegistryManager().get(Enchantments.SHARPNESS.getRegistryRef()).getEntry(Enchantments.SHARPNESS).get(), itemStack);
+            float durability = itemStack.getComponents().get(DataComponentTypes.MAX_DAMAGE);
+
+            if (sharpness > bestSharpness || (sharpness == bestSharpness && durability > bestDurability)) {
+                bestSharpness = sharpness;
+                bestDurability = durability;
+                slot = i;
+            }
+        }
+
+        if (slot == -1) return SearchInvResult.notFound();
+        return new SearchInvResult(slot, true, mc.player.getInventory().getStack(slot));
+    }
+
     // TODO check
     public static SearchInvResult getAxeHotBar() {
         if (mc.player == null) return SearchInvResult.notFound();
@@ -411,4 +441,4 @@ public final class InventoryUtility {
     public interface Searcher {
         boolean isValid(ItemStack stack);
     }
-}
+            }
