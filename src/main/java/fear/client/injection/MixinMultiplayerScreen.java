@@ -22,15 +22,15 @@ public abstract class MixinMultiplayerScreen extends Screen {
 
     @Inject(method = "init", at = @At("RETURN"))
     private void initHook(CallbackInfo ci) {
-        ButtonWidget.Builder builder = ButtonWidget.builder(Text.literal("⚡"), button -> mc.setScreen(
+        ButtonWidget.Builder builder = ButtonWidget.builder(Text.literal("⚡ FearClient"), button -> mc.setScreen(
                 new WindowsScreen(
                         MacroWindow.get(ModuleManager.windows.macroPos.getValue().getX() * mc.getWindow().getScaledWidth(), ModuleManager.windows.macroPos.getValue().getY() * mc.getWindow().getScaledHeight(), ModuleManager.windows.macroPos),
                         ConfigWindow.get(ModuleManager.windows.configPos.getValue().getX() * mc.getWindow().getScaledWidth(), ModuleManager.windows.configPos.getValue().getY() * mc.getWindow().getScaledHeight(), ModuleManager.windows.configPos),
                         FriendsWindow.get(ModuleManager.windows.friendPos.getValue().getX() * mc.getWindow().getScaledWidth(), ModuleManager.windows.friendPos.getValue().getY() * mc.getWindow().getScaledHeight(), ModuleManager.windows.friendPos),
                         WaypointWindow.get(ModuleManager.windows.waypointPos.getValue().getX() * mc.getWindow().getScaledWidth(), ModuleManager.windows.waypointPos.getValue().getY() * mc.getWindow().getScaledHeight(), ModuleManager.windows.waypointPos),
                         ProxyWindow.get(ModuleManager.windows.proxyPos.getValue().getX() * mc.getWindow().getScaledWidth(), ModuleManager.windows.proxyPos.getValue().getY() * mc.getWindow().getScaledHeight(), ModuleManager.windows.proxyPos)
-                ))).size(60, 20);
+                ))).size(90, 20);
         if (!ModuleManager.unHook.isEnabled())
-            addDrawableChild(builder.position(width - 65, height - 25).build());
+            addDrawableChild(builder.position(width - 100, 6).build());
     }
 }
