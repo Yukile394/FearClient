@@ -1,1 +1,1 @@
-&7Best Hack Client
+bunun adını degistirip kendi hilesi gibi satanlarin anasini sikerim [ThunderClient]
