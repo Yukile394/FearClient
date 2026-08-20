@@ -20,15 +20,18 @@ public final class ElytraTarget extends Module {
     /*   ROCKET SETTINGS   */
     private final Setting<Boolean> rocketBoost = new Setting<>("RocketBoost", true);
     private final Setting<Boolean> useWhileHoldingAnyItem = new Setting<>("UseRocketsWhileHoldingAnyItem", true, v -> rocketBoost.getValue());
-    private final Setting<Integer> minDelay = new Setting<>("MinimumDelay", 50, 0, 2000, v -> rocketBoost.getValue());
-    private final Setting<Integer> maxDelay = new Setting<>("MaximumDelay", 150, 0, 2000, v -> rocketBoost.getValue());
+    // Çok daha agresif delay - neredeyse sürekli fişek
+    private final Setting<Integer> minDelay = new Setting<>("MinimumDelay", 0, 0, 500, v -> rocketBoost.getValue());
+    private final Setting<Integer> maxDelay = new Setting<>("MaximumDelay", 20, 0, 500, v -> rocketBoost.getValue());
     private final Setting<Boolean> silentRockets = new Setting<>("SilentRocketUsage", true, v -> rocketBoost.getValue());
     private final Setting<Boolean> autoSwitchRocket = new Setting<>("AutoSwitchRocket", true, v -> rocketBoost.getValue());
+    // Hedef yokken de fişek bas (her zaman aktif)
+    private final Setting<Boolean> alwaysBoost = new Setting<>("AlwaysBoost", false, v -> rocketBoost.getValue());
     private final Setting<Priority> priority = new Setting<>("PrioritySettings", Priority.RocketFirst, v -> rocketBoost.getValue());
 
     /*   TARGET SETTINGS   */
     private final Setting<Float> targetRange = new Setting<>("TargetRange", 40f, 5f, 128f);
-    private final Setting<Boolean> onlyWhileChasing = new Setting<>("OnlyWhileChasingTarget", true);
+    private final Setting<Boolean> onlyWhileChasing = new Setting<>("OnlyWhileChasingTarget", false);
     private final Setting<Boolean> onlyWhenFlying = new Setting<>("OnlyWhenFlying", true);
 
     /*   SWORD SETTINGS   */
@@ -46,11 +49,13 @@ public final class ElytraTarget extends Module {
 
         boolean hasValidTarget = target != null && PlayerUtility.squaredDistanceFromEyes(target.getPos()) < (targetRange.getValue() * targetRange.getValue());
 
+        // alwaysBoost açıksa hedef koşulunu atla
+        boolean shouldBoost = alwaysBoost.getValue() || hasValidTarget;
+
         if (onlyWhileChasing.getValue() && !hasValidTarget) return;
         if (onlyWhenFlying.getValue() && !mc.player.isFallFlying()) return;
 
-        // Auto-switch to the highest-Sharpness sword in the hotbar while attacking,
-        // even if fireworks are currently held/used - fast and silent (no visible slot change).
+        // Auto-switch to the highest-Sharpness sword
         if (autoSharpestSword.getValue() && hasValidTarget) {
             SearchInvResult sword = InventoryUtility.getHighestSharpnessSwordHotBar();
             if (sword.found() && mc.player.getInventory().selectedSlot != sword.slot()) {
@@ -59,15 +64,24 @@ public final class ElytraTarget extends Module {
         }
 
         if (!rocketBoost.getValue()) return;
-        if (!hasValidTarget) return;
+        if (!shouldBoost) return;
 
         boolean holdingSomethingElse = mc.player.getMainHandStack().getItem() != Items.FIREWORK_ROCKET;
         if (holdingSomethingElse && !useWhileHoldingAnyItem.getValue()) return;
 
-        int delay = (int) (minDelay.getValue() + Math.random() * Math.max(0, maxDelay.getValue() - minDelay.getValue()));
+        // Agresif delay - min ile max arasında çok kısa süre bekle
+        int delay = minDelay.getValue() >= maxDelay.getValue()
+                ? minDelay.getValue()
+                : (int) (minDelay.getValue() + Math.random() * (maxDelay.getValue() - minDelay.getValue()));
+
         if (!rocketTimer.passedMs(delay)) return;
 
+        // Birden fazla fişek bas (hız için)
         fireRocket();
+        if (delay == 0) {
+            // delay 0 ise aynı tick içinde bir tane daha bas
+            fireRocket();
+        }
         rocketTimer.reset();
     }
 
@@ -77,10 +91,9 @@ public final class ElytraTarget extends Module {
 
         if (rocketSlot == -1) {
             if (!autoSwitchRocket.getValue()) return;
+            // Envanterin herhangi bir yerinde ara
             SearchInvResult rocketAnywhere = InventoryUtility.findItemInInventory(Items.FIREWORK_ROCKET);
             if (!rocketAnywhere.found()) return;
-            // Not in hotbar and auto-switch fetch from the rest of the inventory isn't safe to do silently,
-            // so just bail - user needs rockets accessible in the hotbar.
             return;
         }
 
@@ -101,3 +114,4 @@ public final class ElytraTarget extends Module {
         RocketFirst, SwordFirst
     }
 }
+
