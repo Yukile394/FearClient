@@ -115,7 +115,7 @@ public final class ElytraTarget extends Module {
 
         // Hedef elytra ile uçuyorsa önüne geçmeye çalış (intercept)
         Vec3d predictedPos = targetPos;
-        if (interceptTarget.getValue() && target.isFallFlying()) {
+        if (interceptTarget.getValue() && target instanceof net.minecraft.entity.LivingEntity le && le.isFallFlying()) {
             double dist = Math.sqrt(PlayerUtility.squaredDistanceFromEyes(targetPos));
             double ticks = dist / (speed * 2.0);
             predictedPos = targetPos.add(targetMotion.multiply(ticks));
