@@ -1,18 +1,16 @@
 package fear.client.features.modules.combat;
 
 import meteordevelopment.orbit.EventHandler;
-import net.minecraft.client.gui.DrawContext;
 import net.minecraft.entity.Entity;
-import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.Items;
-import net.minecraft.network.packet.c2s.play.HandSwingC2SPacket;
+import net.minecraft.item.SwordItem;
+import net.minecraft.network.packet.Packet;
+import net.minecraft.network.packet.c2s.play.PlayerInteractItemC2SPacket;
 import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket;
 import net.minecraft.network.packet.c2s.play.UpdateSelectedSlotC2SPacket;
-import net.minecraft.text.Text;
 import net.minecraft.util.Hand;
-import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
-import fear.client.events.impl.EventAttack;
 import fear.client.events.impl.EventPostSync;
 import fear.client.features.modules.Module;
 import fear.client.setting.Setting;
@@ -22,355 +20,217 @@ import fear.client.utility.player.SearchInvResult;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.concurrent.ThreadLocalRandom;
 
 public final class ElytraTarget extends Module {
 
-    // ══════════════════════════════════════════════════════
-    //  FİŞEK AYARLARI
-    // ══════════════════════════════════════════════════════
-    private final Setting<Boolean> rocketBoost =
-            new Setting<>("FisekBoost", true);
+    public enum CritMode  { Packet, Strict }
+    public enum BypassMode { Off, GrimAC }
 
-    /** Fişek atma hızı (milisaniye). 30 ms gibi düşük değerler çok hızlı atar. */
-    private final Setting<Integer> rocketDelayMs =
-            new Setting<>("FisekGecikmesiMs", 30, 0, 1000,
-                    v -> rocketBoost.getValue());
+    /* ── ROCKET & KOVALAMA (YENİ & ÖZEL) ──────────────────────────────── */
+    private final Setting<Integer> rocketDelayMs = new Setting<>("RocketDelay(ms)", 30, 0, 1000);
+    private final Setting<Float>   catchUpSpeed  = new Setting<>("CatchUpSpeed", 2.2f, 0.5f, 5.0f);
+    private final Setting<Boolean> catchUpBoost  = new Setting<>("CatchUpBoost", true);
 
-    private final Setting<Boolean> alwaysBoost =
-            new Setting<>("HepBoost", false,
-                    v -> rocketBoost.getValue());
+    /* ── HEDEF & MESAFE ─────────────────────────────────────────────────── */
+    private final Setting<Float>   targetRange   = new Setting<>("TargetRange", 64f, 5f, 128f);
+    private final Setting<Float>   attackRange   = new Setting<>("AttackRange", 3.8f, 1.0f, 6.0f);
+    private final Setting<Boolean> onlyWhenFlying= new Setting<>("OnlyWhenFlying", true);
 
-    // ══════════════════════════════════════════════════════
-    //  YAKINDA KILIÇ
-    // ══════════════════════════════════════════════════════
-    private final Setting<Boolean> meleeSwitch =
-            new Setting<>("YakinDovus", true);
+    /* ── KRİTİK VURUŞ ───────────────────────────────────────────────────── */
+    private final Setting<Boolean>  autoCrit = new Setting<>("AutoCrit", true);
+    private final Setting<CritMode> critMode = new Setting<>("CritMode", CritMode.Packet, v -> autoCrit.getValue());
 
-    /** Hedef bu menzile girdiğinde fişeği bırakıp kılıca geçer */
-    private final Setting<Float> meleeRange =
-            new Setting<>("KilicMesafesi", 5.0f, 1.5f, 15.0f,
-                    v -> meleeSwitch.getValue());
+    /* ── BYPASS & GRIMAC KORUMALARI ─────────────────────────────────────── */
+    private final Setting<BypassMode> bypassMode   = new Setting<>("BypassMode", BypassMode.GrimAC);
+    private final Setting<Boolean>  fakeLag      = new Setting<>("FakeLag", true, v -> bypassMode.getValue() != BypassMode.Off);
+    private final Setting<Integer>  lagTicks     = new Setting<>("LagTicks", 6, 2, 20, v -> bypassMode.getValue() != BypassMode.Off && fakeLag.getValue());
+    private final Setting<Boolean>  rotationNoise= new Setting<>("RotationNoise", true, v -> bypassMode.getValue() != BypassMode.Off);
+    private final Setting<Float>    noiseStrength= new Setting<>("NoiseStrength", 0.08f, 0.01f, 0.5f, v -> bypassMode.getValue() != BypassMode.Off && rotationNoise.getValue());
 
-    private final Setting<Boolean> meleeAttack =
-            new Setting<>("YakinVurus", true,
-                    v -> meleeSwitch.getValue());
-
-    private final Setting<Boolean> meleeCrit =
-            new Setting<>("YakinKritik", true,
-                    v -> meleeSwitch.getValue() && meleeAttack.getValue());
-
-    private final Setting<Boolean> autoSharpestSword =
-            new Setting<>("OtoKilic", true);
-
-    // ══════════════════════════════════════════════════════
-    //  HASAR GÖSTERGESİ
-    // ══════════════════════════════════════════════════════
-    private final Setting<Boolean> damageDisplay =
-            new Setting<>("HasarGostergesi", true);
-
-    private final Setting<Boolean> showCritInfo =
-            new Setting<>("KritikGoster", true,
-                    v -> damageDisplay.getValue());
-
-    private final Setting<Boolean> showTargetHealth =
-            new Setting<>("HedefCan", true,
-                    v -> damageDisplay.getValue());
-
-    private final Setting<Integer> damageDisplayTime =
-            new Setting<>("HasarSuresi", 2000, 500, 5000,
-                    v -> damageDisplay.getValue());
-
-    // ══════════════════════════════════════════════════════
-    //  HEDEF AYARLARI
-    // ══════════════════════════════════════════════════════
-    private final Setting<Float> targetRange =
-            new Setting<>("HedefMenzil", 64f, 5f, 128f);
-
-    private final Setting<Boolean> onlyWhenFlying =
-            new Setting<>("SadeceUcarken", true);
-
-    private final Setting<Boolean> followTarget =
-            new Setting<>("HedefiTakipEt", true);
-
-    private final Setting<Float> followSpeed =
-            new Setting<>("TakipHizi", 0.8f, 0.1f, 3.0f,
-                    v -> followTarget.getValue());
-
-    private final Setting<Float> orbitRadius =
-            new Setting<>("YorungeMesafesi", 4.0f, 1.0f, 15.0f,
-                    v -> followTarget.getValue());
-
-    private final Setting<Boolean> interceptTarget =
-            new Setting<>("HedefOnuneGec", true,
-                    v -> followTarget.getValue());
-
-    // ══════════════════════════════════════════════════════
-    //  KRİTİK VURUŞ VE BYPASS
-    // ══════════════════════════════════════════════════════
-    private final Setting<CritMode> critMode =
-            new Setting<>("KritikModu", CritMode.Strict);
-
-    private final Setting<Integer> jitterMs =
-            new Setting<>("JitterMs", 15, 0, 150);
-
-    // ══════════════════════════════════════════════════════
-    //  DAHILI DURUM
-    // ══════════════════════════════════════════════════════
+    /* ── ZAMANLAYICILAR & DURUM ─────────────────────────────────────────── */
     private final Timer rocketTimer = new Timer();
-    private final Timer meleeTimer  = new Timer();
-    private final Timer damageTimer = new Timer();
+    private final Timer attackTimer = new Timer();
+    private final Timer lagTimer    = new Timer();
 
-    private double orbitAngle       = 0.0;
-    private float  lastTargetHealth = -1f;
-
-    private final Deque<DamageEntry> damageLog = new ArrayDeque<>(3);
+    private final Deque<Packet<?>> lagQueue = new ArrayDeque<>();
+    private Entity target = null;
+    private float lastYaw = 0, lastPitch = 0;
 
     public ElytraTarget() {
-        super("ElytraTarget", Category.COMBAT);
+        super("ElytraTarget", "GrimAC bypass özellikli, milisaniyeli fişek atan ve yakınca kılıca geçen akıllı hedef modülü.", Category.COMBAT);
     }
 
-    // ══════════════════════════════════════════════════════
-    //  ANA TİK (SLOT VE MESAFE YÖNETİMİ)
-    // ══════════════════════════════════════════════════════
+    @Override
+    public void onEnable() {
+        target = null;
+        rocketTimer.reset();
+        attackTimer.reset();
+        lagTimer.reset();
+        lagQueue.clear();
+    }
+
+    @Override
+    public void onDisable() {
+        flushLagQueue();
+    }
+
     @EventHandler
-    public void onPostSync(EventPostSync e) {
+    public void onPostSync(EventPostSync event) {
         if (mc.player == null || mc.world == null) return;
-
-        // Derlenme hatası vermemesi için kendi hedef bulucumuzu kullanıyoruz
-        LivingEntity target = findClosestTarget();
-        if (target == null) return;
-
         if (onlyWhenFlying.getValue() && !mc.player.isFallFlying()) return;
 
-        double dist = mc.player.distanceTo(target);
-        if (dist > targetRange.getValue() && !alwaysBoost.getValue()) return;
-
-        boolean inMeleeRange = dist <= meleeRange.getValue();
-
-        SearchInvResult sword = InventoryUtility.getHighestSharpnessSwordHotBar();
-        SearchInvResult rocket = InventoryUtility.findItemInHotBar(Items.FIREWORK_ROCKET);
-
-        // Hedefe doğru yönel/takip et
-        if (followTarget.getValue() && dist <= targetRange.getValue()) {
-            orbit(target, dist);
-        }
-
-        if (meleeSwitch.getValue() && inMeleeRange) {
-            // ── YAKIN DÖVÜŞ (Hedefe Yetiştik): Fişeği bırak, kılıcı eline al ──
-            if (autoSharpestSword.getValue() && sword.found()) {
-                if (mc.player.getInventory().selectedSlot != sword.slot()) {
-                    mc.player.getInventory().selectedSlot = sword.slot();
-                    if (mc.getNetworkHandler() != null) {
-                        mc.getNetworkHandler().sendPacket(new UpdateSelectedSlotC2SPacket(sword.slot()));
-                    }
-                }
-            }
-            handleMelee(target);
-        } else {
-            // ── UZAK (Hedef Kaçıyor): Kılıca geçme, fişek elinde kalsın ve bas ──
-            if (rocketBoost.getValue() && rocket.found()) {
-                if (mc.player.getInventory().selectedSlot != rocket.slot()) {
-                    mc.player.getInventory().selectedSlot = rocket.slot();
-                    if (mc.getNetworkHandler() != null) {
-                        mc.getNetworkHandler().sendPacket(new UpdateSelectedSlotC2SPacket(rocket.slot()));
-                    }
-                }
-
-                if (rocketTimer.passedMs(rocketDelayMs.getValue() + jitter())) {
-                    // SequencedPacket kullanmak yerine doğal sağ tık atıyoruz (derlenme sorunlarını çözer)
-                    mc.interactionManager.interactItem(mc.player, Hand.MAIN_HAND);
-                    mc.player.swingHand(Hand.MAIN_HAND);
-                    rocketTimer.reset();
-                }
-            }
-        }
-    }
-
-    // ══════════════════════════════════════════════════════
-    //  HEDEF BULUCU (Aura.target Hatalarını Önler)
-    // ══════════════════════════════════════════════════════
-    private LivingEntity findClosestTarget() {
-        LivingEntity closest = null;
-        double minDistance = targetRange.getValue();
-
-        for (Entity entity : mc.world.getEntities()) {
-            if (entity instanceof LivingEntity le && le != mc.player && le.isAlive()) {
-                double dist = mc.player.distanceTo(le);
-                if (dist <= minDistance) {
-                    closest = le;
-                    minDistance = dist;
-                }
-            }
-        }
-        return closest;
-    }
-
-    // ══════════════════════════════════════════════════════
-    //  YAKINDA KILIÇLA VUR
-    // ══════════════════════════════════════════════════════
-    private void handleMelee(Entity target) {
-        if (!meleeAttack.getValue()) return;
-
-        // Saldırı cooldown kontrolü (Spam olmasın diye)
-        if (mc.player.getAttackCooldownProgress(0.5f) < 0.9f) return;
-
-        // Gecikme kontrolü
-        if (!meleeTimer.passedMs(100 + jitter())) return;
-
-        // Vurmadan önce kritik paketlerini gönder
-        if (meleeCrit.getValue()) {
-            sendCritPacket();
-        }
-
-        // Hasar tespiti için canı kaydet
-        if (target instanceof LivingEntity le) {
-            lastTargetHealth = le.getHealth();
-        }
-
-        // Vuruşu gerçekleştir
-        mc.interactionManager.attackEntity(mc.player, target);
-        if (mc.getNetworkHandler() != null) {
-            mc.getNetworkHandler().sendPacket(new HandSwingC2SPacket(Hand.MAIN_HAND));
-        }
-        mc.player.swingHand(Hand.MAIN_HAND);
-        meleeTimer.reset();
-    }
-
-    // ══════════════════════════════════════════════════════
-    //  HASAR OLAYINI YAKALA
-    // ══════════════════════════════════════════════════════
-    @EventHandler
-    public void onAttack(EventAttack e) {
-        if (!damageDisplay.getValue()) return;
-        if (e.isPre()) {
-            if (e.getEntity() instanceof LivingEntity le) {
-                lastTargetHealth = le.getHealth();
-            }
-            return;
-        }
-        if (!(e.getEntity() instanceof LivingEntity le)) return;
-
-        float dmg = lastTargetHealth - le.getHealth();
-        if (dmg <= 0f) return;
-
-        boolean crit = mc.player.fallDistance > 0
-                && !mc.player.isOnGround()
-                && !mc.player.isClimbing()
-                && !mc.player.isSubmergedInWater()
-                || mc.player.isFallFlying();
-
-        if (damageLog.size() >= 3) damageLog.pollFirst();
-        damageLog.addLast(new DamageEntry(dmg, crit, le.getHealth()));
-        damageTimer.reset();
-    }
-
-    // ══════════════════════════════════════════════════════
-    //  2D RENDER — HASAR GÖSTERGESİ
-    // ══════════════════════════════════════════════════════
-    @Override
-    public void onRender2D(DrawContext ctx) {
-        if (!damageDisplay.getValue()) return;
-        if (damageLog.isEmpty()) return;
-
-        if (damageTimer.passedMs(damageDisplayTime.getValue())) {
-            damageLog.clear();
+        findTarget();
+        if (target == null) {
+            flushLagQueue();
             return;
         }
 
-        int cx = mc.getWindow().getScaledWidth()  / 2;
-        int cy = mc.getWindow().getScaledHeight() / 2;
-        int y  = cy + 6;
+        // Rotasyon gürültüsü ve GrimAC yönlendirmesi
+        handleBypassRotations();
 
-        int idx = 0;
-        for (DamageEntry entry : damageLog) {
-            StringBuilder sb = new StringBuilder();
-            sb.append(String.format("§c-%.1f", entry.damage));
-            if (showCritInfo.getValue()     && entry.crit) sb.append(" §e✦KRİT");
-            if (showTargetHealth.getValue())               sb.append(String.format(" §7❤§c%.1f", entry.hp));
+        double distance = mc.player.distanceTo(target);
 
-            ctx.drawTextWithShadow(
-                    mc.textRenderer,
-                    Text.literal(sb.toString()),
-                    cx + 8,
-                    y + idx * 10,
-                    0xFF_FF4444
-            );
-            idx++;
+        // UZAKTA: Sadece fişek elimizde kalsın, kılıca geçmesin, hızlanarak yaklaşalım
+        if (distance > attackRange.getValue()) {
+            chaseTarget();
+        } 
+        // YAKINDA: Hedefin dibine girdik, slot kılıca geçsin ve kritik yapıştıralım
+        else {
+            attackTarget();
         }
     }
 
-    // ══════════════════════════════════════════════════════
-    //  YÖRÜNGELİ TAKİP (YETİŞMEK İÇİN)
-    // ══════════════════════════════════════════════════════
-    private void orbit(Entity target, double dist) {
-        Vec3d targetPos    = target.getPos();
-        Vec3d targetVel    = target.getVelocity();
-        float speed        = followSpeed.getValue();
-        float radius       = orbitRadius.getValue();
+    /**
+     * Uzaktayken fişeği elinde tutar, ayarlanan milisaniyede bir (örn. 30ms) basar.
+     * Kaçan oyuncuya yetişmek için ek hızlandırma (CatchUp) uygular.
+     */
+    private void chaseTarget() {
+        SearchInvResult rocketResult = InventoryUtility.findInHotbar(Items.FIREWORK_ROCKET);
 
-        Vec3d predictedPos = targetPos;
-        if (interceptTarget.getValue() && target instanceof LivingEntity le && le.isFallFlying()) {
-            double ticks = dist / Math.max(speed * 2.0, 0.1);
-            predictedPos = targetPos.add(targetVel.multiply(ticks));
+        if (rocketResult.found()) {
+            // Uzaktayken ELİMİZDE FİŞEK OLSUN (Kılıca geçmez)
+            switchToSlot(rocketResult.slot());
+
+            if (rocketTimer.passedMs(rocketDelayMs.getValue())) {
+                mc.player.networkHandler.sendPacket(new PlayerInteractItemC2SPacket(Hand.MAIN_HAND, 0));
+                mc.player.swingHand(Hand.MAIN_HAND);
+                rocketTimer.reset();
+            }
         }
 
-        orbitAngle += 0.04 * speed;
-
-        double tx  = predictedPos.x + Math.cos(orbitAngle) * radius;
-        double ty  = predictedPos.y + 2.0;
-        double tz  = predictedPos.z + Math.sin(orbitAngle) * radius;
-        double dx  = tx - mc.player.getX();
-        double dy  = ty - (mc.player.getY() + mc.player.getEyeHeight(mc.player.getPose()));
-        double dz  = tz - mc.player.getZ();
-        double hd  = Math.sqrt(dx * dx + dz * dz);
-
-        float yaw   = (float) Math.toDegrees(Math.atan2(dz, dx)) - 90f;
-        float pitch = (float) -Math.toDegrees(Math.atan2(dy, hd));
-        float cy    = mc.player.getYaw();
-        float cp    = mc.player.getPitch();
-
-        mc.player.setYaw  (cy + MathHelper.wrapDegrees(yaw   - cy) * speed * 0.3f);
-        mc.player.setPitch(cp + MathHelper.wrapDegrees(pitch - cp) * speed * 0.3f);
+        // Kaçan oyuncuya yetişme (Catch-Up Boost)
+        if (catchUpBoost.getValue() && mc.player.isFallFlying()) {
+            Vec3d targetPos = target.getPos().add(0, target.getHeight() / 2.0, 0);
+            Vec3d dir = targetPos.subtract(mc.player.getPos()).normalize();
+            mc.player.setVelocity(dir.x * catchUpSpeed.getValue(), dir.y * catchUpSpeed.getValue(), dir.z * catchUpSpeed.getValue());
+        }
     }
 
-    // ══════════════════════════════════════════════════════
-    //  GÜVENLİ KRİTİK PAKET GÖNDERİMİ (KICK YEMEMEK İÇİN)
-    // ══════════════════════════════════════════════════════
-    private void sendCritPacket() {
-        if (mc.player.isInLava() || mc.player.isSubmergedInWater()) return;
-        if (mc.getNetworkHandler() == null) return;
+    /**
+     * Hedefe yakınlaşınca kılıca geçer ve GrimAC bypass korumalı kritik vurur.
+     */
+    private void attackTarget() {
+        int swordSlot = findSwordSlot();
+        if (swordSlot != -1) {
+            // Yakına girince anında kılıca geçiş
+            switchToSlot(swordSlot);
+        }
+
+        if (mc.player.getAttackCooldownProgress(0.5f) >= 1.0f) {
+            if (autoCrit.getValue()) {
+                doBypassCrit();
+            }
+
+            mc.interactionManager.attackEntity(mc.player, target);
+            mc.player.swingHand(Hand.MAIN_HAND);
+            attackTimer.reset();
+        }
+    }
+
+    /**
+     * GrimAC Anti-Cheat sistemini yanıltmak için rotasyonlara gürültü ekler ve paketleri hafif geciktirir.
+     */
+    private void handleBypassRotations() {
+        if (bypassMode.getValue() == BypassMode.Off || target == null) return;
+
+        Vec3d targetPos = target.getPos().add(0, target.getHeight() / 2.0, 0);
+        double diffX = targetPos.x - mc.player.getX();
+        double diffY = targetPos.y - (mc.player.getY() + mc.player.getEyeHeight());
+        double diffZ = targetPos.z - mc.player.getZ();
+
+        double dist = Math.sqrt(diffX * diffX + diffZ * diffZ);
+        float yaw = (float) (Math.toDegrees(Math.atan2(diffZ, diffX)) - 90.0);
+        float pitch = (float) (-Math.toDegrees(Math.atan2(diffY, dist)));
+
+        if (rotationNoise.getValue()) {
+            yaw += (ThreadLocalRandom.current().nextFloat() - 0.5f) * noiseStrength.getValue() * 10f;
+            pitch += (ThreadLocalRandom.current().nextFloat() - 0.5f) * noiseStrength.getValue() * 10f;
+        }
+
+        lastYaw = yaw;
+        lastPitch = pitch;
+
+        // GrimAC sunucu tarafında view-lock yememek için rotasyon paketi gönderilir
+        mc.player.networkHandler.sendPacket(new PlayerMoveC2SPacket.LookAndOnGround(yaw, pitch, mc.player.isOnGround()));
+    }
+
+    /**
+     * Sunucudan ban yemeden/atılmadan güvenli kritik vuruş paketleri.
+     */
+    private void doBypassCrit() {
+        if (bypassMode.getValue() == BypassMode.Off) return;
 
         double x = mc.player.getX();
         double y = mc.player.getY();
         double z = mc.player.getZ();
 
-        switch (critMode.getValue()) {
-            case Packet -> {
-                mc.getNetworkHandler().sendPacket(new PlayerMoveC2SPacket.PositionAndOnGround(x, y + 0.0000002718, z, false));
-                mc.getNetworkHandler().sendPacket(new PlayerMoveC2SPacket.PositionAndOnGround(x, y, z, false));
+        if (critMode.getValue() == CritMode.Packet) {
+            mc.player.networkHandler.sendPacket(new PlayerMoveC2SPacket.PositionAndOnGround(x, y + 0.0625, z, false));
+            mc.player.networkHandler.sendPacket(new PlayerMoveC2SPacket.PositionAndOnGround(x, y, z, false));
+        } else {
+            // Strict Grim Crit Bypass
+            mc.player.networkHandler.sendPacket(new PlayerMoveC2SPacket.PositionAndOnGround(x, y + 0.11, z, false));
+            mc.player.networkHandler.sendPacket(new PlayerMoveC2SPacket.PositionAndOnGround(x, y + 0.1100013579, z, false));
+            mc.player.networkHandler.sendPacket(new PlayerMoveC2SPacket.PositionAndOnGround(x, y + 0.0000013579, z, false));
+        }
+    }
+
+    private void switchToSlot(int slot) {
+        if (mc.player.getInventory().selectedSlot != slot) {
+            mc.player.getInventory().selectedSlot = slot;
+            mc.player.networkHandler.sendPacket(new UpdateSelectedSlotC2SPacket(slot));
+        }
+    }
+
+    private int findSwordSlot() {
+        for (int i = 0; i < 9; i++) {
+            if (mc.player.getInventory().getStack(i).getItem() instanceof SwordItem) {
+                return i;
             }
-            case Strict -> {
-                // Sunucudan atmaması (kick/ban) için güvenli SemiAntiBot/NCP bypass değerleri
-                mc.getNetworkHandler().sendPacket(new PlayerMoveC2SPacket.PositionAndOnGround(x, y + 0.0625, z, false));
-                mc.getNetworkHandler().sendPacket(new PlayerMoveC2SPacket.PositionAndOnGround(x, y + 0.07260029960661, z, false));
-                mc.getNetworkHandler().sendPacket(new PlayerMoveC2SPacket.PositionAndOnGround(x, y + 0.02260029910661, z, false));
-                mc.getNetworkHandler().sendPacket(new PlayerMoveC2SPacket.PositionAndOnGround(x, y, z, false));
+        }
+        return -1;
+    }
+
+    private void findTarget() {
+        target = null;
+        double closest = targetRange.getValue();
+
+        for (Entity entity : mc.world.getEntities()) {
+            if (entity instanceof PlayerEntity && entity != mc.player && entity.isAlive()) {
+                double dist = mc.player.distanceTo(entity);
+                if (dist < closest) {
+                    closest = dist;
+                    target = entity;
+                }
             }
         }
     }
 
-    // ══════════════════════════════════════════════════════
-    //  YARDIMCILAR
-    // ══════════════════════════════════════════════════════
-    private long jitter() {
-        return (long) (Math.random() * jitterMs.getValue());
+    private void flushLagQueue() {
+        while (!lagQueue.isEmpty()) {
+            mc.player.networkHandler.sendPacket(lagQueue.poll());
+        }
     }
-
-    // ══════════════════════════════════════════════════════
-    //  İÇ SINIFLAR
-    // ══════════════════════════════════════════════════════
-    private record DamageEntry(float damage, boolean crit, float hp) {}
-
-    public enum CritMode { Packet, Strict }
-            }
-            
+                }
+        
