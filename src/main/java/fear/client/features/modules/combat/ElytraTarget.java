@@ -2,6 +2,7 @@ package fear.client.features.modules.combat;
 
 import meteordevelopment.orbit.EventHandler;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityPose;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.Items;
 import net.minecraft.item.SwordItem;
@@ -58,7 +59,8 @@ public final class ElytraTarget extends Module {
     private float lastYaw = 0, lastPitch = 0;
 
     public ElytraTarget() {
-        super("ElytraTarget", "GrimAC bypass özellikli, milisaniyeli fişek atan ve yakınca kılıca geçen akıllı hedef modülü.", Category.COMBAT);
+        // Module only accepts (name, category) – description is auto-generated
+        super("ElytraTarget", Category.COMBAT);
     }
 
     @Override
@@ -94,7 +96,7 @@ public final class ElytraTarget extends Module {
         // UZAKTA: Sadece fişek elimizde kalsın, kılıca geçmesin, hızlanarak yaklaşalım
         if (distance > attackRange.getValue()) {
             chaseTarget();
-        } 
+        }
         // YAKINDA: Hedefin dibine girdik, slot kılıca geçsin ve kritik yapıştıralım
         else {
             attackTarget();
@@ -106,14 +108,22 @@ public final class ElytraTarget extends Module {
      * Kaçan oyuncuya yetişmek için ek hızlandırma (CatchUp) uygular.
      */
     private void chaseTarget() {
-        SearchInvResult rocketResult = InventoryUtility.findInHotbar(Items.FIREWORK_ROCKET);
+        // Correct method name: findItemInHotBar
+        SearchInvResult rocketResult = InventoryUtility.findItemInHotBar(Items.FIREWORK_ROCKET);
 
         if (rocketResult.found()) {
             // Uzaktayken ELİMİZDE FİŞEK OLSUN (Kılıca geçmez)
             switchToSlot(rocketResult.slot());
 
             if (rocketTimer.passedMs(rocketDelayMs.getValue())) {
-                mc.player.networkHandler.sendPacket(new PlayerInteractItemC2SPacket(Hand.MAIN_HAND, 0));
+                // New constructor: Hand, sequence, yaw, pitch
+                // Prefer the sequenced helper from Module when available
+                sendSequencedPacket(id -> new PlayerInteractItemC2SPacket(
+                        Hand.MAIN_HAND,
+                        id,
+                        mc.player.getYaw(),
+                        mc.player.getPitch()
+                ));
                 mc.player.swingHand(Hand.MAIN_HAND);
                 rocketTimer.reset();
             }
@@ -156,7 +166,8 @@ public final class ElytraTarget extends Module {
 
         Vec3d targetPos = target.getPos().add(0, target.getHeight() / 2.0, 0);
         double diffX = targetPos.x - mc.player.getX();
-        double diffY = targetPos.y - (mc.player.getY() + mc.player.getEyeHeight());
+        // getEyeHeight() now requires EntityPose – use getStandingEyeHeight() or current pose
+        double diffY = targetPos.y - (mc.player.getY() + mc.player.getStandingEyeHeight());
         double diffZ = targetPos.z - mc.player.getZ();
 
         double dist = Math.sqrt(diffX * diffX + diffZ * diffZ);
@@ -232,5 +243,4 @@ public final class ElytraTarget extends Module {
             mc.player.networkHandler.sendPacket(lagQueue.poll());
         }
     }
-                }
-        
+}
